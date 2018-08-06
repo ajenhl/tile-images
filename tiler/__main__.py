@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 """Script to compile images into a PDF with each image cut into
 appropriate size pieces, and with every second image forming the
 second side of each page."""
@@ -17,6 +15,9 @@ from PIL import Image
 DESCRIPTION = '''
 Compile a double-sided PDF from images, tiling as necessary to fit the
 paper size. Requires an even number of images.'''
+DEFAULT_DPI = 300
+DEFAULT_HEIGHT = 440  # millimetres
+DEFAULT_WIDTH = 312  # millimetres
 DIFFERENT_SIZE_IMAGES_ERROR = 'The supplied images have different dimensions.'
 DPI_HELP = 'DPI of images'
 HEIGHT_HELP = 'height of printable area in millimetres'
@@ -47,11 +48,14 @@ def main():
             path = os.path.join(tmp_dir, '{:0>4}.jpg'.format(i))
             paths.append(path)
             image.save(path)
-        page_size = (img2pdf.px_to_pt(print_size[0], dpi),
-                     img2pdf.px_to_pt(print_size[1], dpi))
-        layout = img2pdf.get_layout_fun(page_size)
+        page_size = img2pdf.parse_pagesize_rectarg(
+            '{}mmx{}mm'.format(args.width, args.height))
+        image_size = img2pdf.parse_imgsize_rectarg(
+            '{}dpix{}dpi'.format(dpi, dpi))
+        layout_func = img2pdf.get_layout_fun(
+            pagesize=page_size, imgsize=image_size)
         with open(args.output, 'wb') as fh:
-            fh.write(img2pdf.convert(paths, layout_fun=layout))
+            fh.write(img2pdf.convert(paths, layout_fun=layout_func))
 
 
 def check_size(image_size, paper_size):
@@ -85,10 +89,12 @@ def generate_parser():
     parser = argparse.ArgumentParser(
         description=DESCRIPTION,
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--dpi', default=300, help=DPI_HELP, metavar='DPI',
+    parser.add_argument('--dpi', default=DEFAULT_DPI, help=DPI_HELP,
+                        metavar='DPI', type=int)
+    parser.add_argument('--height', default=DEFAULT_HEIGHT, help=HEIGHT_HELP,
                         type=int)
-    parser.add_argument('--height', default=440, help=HEIGHT_HELP, type=int)
-    parser.add_argument('--width', default=312, help=WIDTH_HELP, type=int)
+    parser.add_argument('--width', default=DEFAULT_WIDTH, help=WIDTH_HELP,
+                        type=int)
     parser.add_argument('output', metavar='DEST', help=OUTPUT_HELP)
     parser.add_argument('images', metavar='IMAGE', nargs='+', help=IMAGES_HELP)
     return parser
